@@ -5,6 +5,10 @@ import pickle
 from datetime import datetime, timedelta
 
 def reports_by_type():
+    '''
+    Make a stacked bar graph for each operating center showing how many reports
+    came in of each time during each month.
+    '''
     reports = pd.read_csv('my_data/combined_reports.csv')
     reports.dropna(subset=['operatingCenter'], inplace=True)
     # The new reports has some very granular new types, but not enough to try to plot
@@ -46,5 +50,46 @@ def reports_by_type():
     plt.tight_layout()
     plt.savefig('plots/types_over_time.png')
 
+def time_plots():
+    '''
+    Save a set of histograms related to the time columns of reports.
+    '''
+    reports = pd.read_csv('my_data/combined_reports.csv')
+    reports['serverCreatedDate'] = pd.to_datetime(reports.serverCreatedDate)
+    reports['serverModifiedDate'] = pd.to_datetime(reports.serverModifiedDate)
+    reports['adapterProcessedDate'] = pd.to_datetime(reports.adapterProcessedDate)
+    days_until_modified = \
+        (reports.serverModifiedDate - reports.serverCreatedDate).apply(lambda d: d.days)
+    days_until_adapted = \
+        (reports.adapterProcessedDate - reports.serverCreatedDate).apply(lambda d: d.days)
+    days_until_modified.hist()
+    plt.title('Days From Created To Modified')
+    plt.xlabel('Days')
+    plt.ylabel('Number of Reports')
+    plt.savefig('plots/created_to_modified_hist.png')
+    plt.close()
+    days_until_modified_two_weeks = days_until_modified[days_until_modified <= 14]
+    days_until_modified_two_weeks.hist()
+    plt.title('Days From Created To Modified--Two Weeks')
+    plt.xlabel('Days')
+    plt.ylabel('Number of Reports')
+    plt.savefig('plots/created_to_modified_hist_first_two_weeks.png')
+    plt.close()
+    days_until_adapted.hist()
+    plt.title('Days From Created Until Put In Database')
+    plt.xlabel('Days')
+    plt.ylabel('Number of Reports')
+    plt.savefig('plots/days_until_database.png')
+    plt.close()
+    reports.adapterProcessedDate.hist()
+    plt.title('Adapter Processed Date')
+    plt.xlabel('Days')
+    plt.ylabel('Number of Reports')
+    plt.savefig('plots/adapter_processed.png')
+    plt.close()
+
+
+
 if __name__ == '__main__':
-    print('Im a plot-making machine.')
+    print('I am a plot-making machine.')
+    #reports_by_type()
