@@ -37,9 +37,12 @@ def reports_by_type():
         ax.set_title(group)
         ax.set_xlim(min_month, max_month)
         ax.set_ylim(0, 1300)
-        if index == 0:
+        if index <= 4:
             handles, labels = ax.get_legend_handles_labels()
             ax.legend(handles[::-1], labels[::-1], title='Line', loc='upper left')
+        else:
+            handles, labels = ax.get_legend_handles_labels()
+            ax.legend(handles[::-1], labels[::-1], title='Line', loc='upper right')
     plt.tight_layout()
     plt.savefig('plots/types_over_time.png')
 
