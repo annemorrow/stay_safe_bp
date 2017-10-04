@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import pickle
 from datetime import datetime, timedelta
 from scorer import get_pipeline
@@ -90,7 +91,7 @@ def time_plots():
     plt.savefig('plots/adapter_processed.png')
     plt.close()
 
-def scatter_and_legend(point_size=1):
+def scatter_and_legend(point_size=1, x=3, y=1):
     '''
     Plot the incident descriptions in the x-y plane using coordinates from pipe_SVD
     where Stop the Job is in red, Further Action Necessary is in green,
@@ -99,8 +100,8 @@ def scatter_and_legend(point_size=1):
     pipe_SVD = get_pipeline()
     reports = pd.read_csv('my_data/combined_reports.csv').set_index('seq')
     reports.dropna(subset=['immediateActionsTaken', 'incidentDescription'], inplace=True)
-    coordinates = pipe_SVD.transform(reports.incidentDescription)[:, [3, 1]]
-    x, y = coordinates[:,0], coordinates[:,1]
+    coordinates = pipe_SVD.transform(reports.incidentDescription)[:, [x, y]]
+    x_coords, y_coords = coordinates[:,0], coordinates[:,1]
     actions = ['No Action Necessary', 'Action Completed Onsite',
                'Further Action Necessary', 'Stop the Job']
     color_map = {
@@ -111,14 +112,14 @@ def scatter_and_legend(point_size=1):
                 }
     plt.figure(figsize=(10, 10))
     for action in actions:
-        plt.scatter(x[reports.immediateActionsTaken == action],
-                    y[reports.immediateActionsTaken == action],
+        plt.scatter(x_coords[reports.immediateActionsTaken == action],
+                    y_coords[reports.immediateActionsTaken == action],
                     s=point_size,
                     c=color_map[action],
                     label=action)
     plt.axis('equal')
     plt.axis('off')
-    plt.legend(loc=(.6, .25), markerscale=10)
+    #plt.legend(loc=(.6, .25), markerscale=10)
 
 def words_around_edges():
     '''
@@ -157,9 +158,53 @@ def words_in_corners():
     plt.text(.5, .1, 'Landscaping \n and Roads', size='large')
     plt.text(-.1, -.37, 'Conversations and Forms', size='large')
 
-def plot_test_data():
-    pass
+def plot_test_data(tag, x=3, y=1):
+    graded = pd.read_csv('my_data/graded.csv')
+    graded = graded[graded.immediateActionsTaken == tag]
+    pipe_SVD = get_pipeline()
+    coordinates = pipe_SVD.transform(graded.incidentDescription.astype(str))[:, [x, y]]
+    x, y = coordinates[:,0], coordinates[:,1]
+    tag_colors = {
+                  'No Action Necessary':'blue',
+                  'Action Completed Onsite': 'orange'
+                 }
+    plt.scatter(x[graded.grade == 0], y[graded.grade == 0],
+                s=30, edgecolor='black', linewidth=3, c=tag_colors[tag],
+                label='Not Important--{}'.format(tag))
+    plt.scatter(x[graded.grade == 1], y[graded.grade == 1],
+                s=30, edgecolor='red', linewidth=3, c=tag_colors[tag],
+                label='Important--{}'.format(tag))
+    l = plt.legend(loc=(.6, .5), markerscale=1.5)
+
+def plot_data_and_test(tag, x=3, y=1):
+    scatter_and_legend(.1, x, y)
+    plot_test_data(tag, x, y)
+    #plt.show()
+
+def plot_3d():
+    pipe_SVD = get_pipeline()
+    reports = pd.read_csv('my_data/combined_reports.csv').set_index('seq')
+    reports.dropna(subset=['immediateActionsTaken', 'incidentDescription'], inplace=True)
+    coordinates = pipe_SVD.transform(reports.incidentDescription)[:, [1, 2, 3]]
+    colors = list(reports.immediateActionsTaken.map({
+                'Stop the Job': 'red',
+                'Further Action Necessary': 'green',
+                'Action Completed Onsite': 'orange',
+                'No Action Necessary': 'blue'
+                }))
+    x, y, z = coordinates[:,0], coordinates[:,1], coordinates[:,2]
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(x, y, z, c=colors, s=.01)
+    graded = pd.read_csv('my_data/graded.csv')
+    graded_tag = graded[graded.immediateActionsTaken == 'Action Completed Onsite']
+    coordinates = pipe_SVD.transform(graded_tag.incidentDescription.astype(str))[:, [1, 2, 3]]
+    x, y, z = coordinates[:,0], coordinates[:,1], coordinates[:,2]
+    grade_colors = list(graded_tag.grade.map({0: 'black', 1: 'red'}))
+    ax.scatter(x, y, z, c=grade_colors, s=3)
+    plt.show()
+
 
 if __name__ == '__main__':
     print('I am a plot-making machine.')
-    #reports_by_type()
+    plot_data_and_test('Action Completed Onsite', 2, 3)
