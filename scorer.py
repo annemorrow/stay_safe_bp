@@ -42,11 +42,10 @@ rank the reports based on how close they are to the strand where some of the rep
 are useful
 '''
 def get_coefficients_of_line():
-    graded = pd.read_csv('my_data/graded.csv', index_col=0)
-    completed_useful = graded[(graded.immediateActionsTaken == 'Action Completed Onsite') &
-                              (graded.grade == 1)]
+    reports = pd.read_csv('my_data/combined_reports.csv')
+    stop_the_job = reports[reports.immediateActionsTaken == 'Stop the Job']
     pipe = get_pipeline()
-    coords = pipe.transform(completed_useful.incidentDescription.dropna())
+    coords = pipe.transform(stop_the_job.incidentDescription.astype(str))
     x = coords[:, 2]
     y = coords[:, 3]
     line = LinearRegression(fit_intercept=True)
@@ -60,6 +59,14 @@ def distance_to_line(line_intercept, line_slope, point_x, point_y):
     b = -1
     c = line_intercept
     return np.abs(a * point_x + b * point_y + c) / np.sqrt(a**2 + b**2)
+
+def closest_point_on_line(line_intercept, line_slope, point_x, point_y):
+    a = line_slope
+    b = -1
+    c = line_intercept
+    x = (b * (b * point_x - a * point_y) - a * c) / (a**2 + b**2)
+    y = (a * (-b * point_x + a * point_y) - b * c) / (a**2 + b**2)
+    return (x, y)
 
 def count_meaningful_event_types(eventTypes_column):
     '''
