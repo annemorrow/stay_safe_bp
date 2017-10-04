@@ -3,6 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import pickle
 from datetime import datetime, timedelta
+from scorer import get_pipeline
+from nltk.corpus import stopwords
 
 def reports_by_type():
     '''
@@ -88,7 +90,75 @@ def time_plots():
     plt.savefig('plots/adapter_processed.png')
     plt.close()
 
+def scatter_and_legend(point_size=1):
+    '''
+    Plot the incident descriptions in the x-y plane using coordinates from pipe_SVD
+    where Stop the Job is in red, Further Action Necessary is in green,
+    Action Completed Onsite is in orange, and No Action Necessary is in blue.
+    '''
+    pipe_SVD = get_pipeline()
+    reports = pd.read_csv('my_data/combined_reports.csv').set_index('seq')
+    reports.dropna(subset=['immediateActionsTaken', 'incidentDescription'], inplace=True)
+    coordinates = pipe_SVD.transform(reports.incidentDescription)[:, [3, 1]]
+    x, y = coordinates[:,0], coordinates[:,1]
+    actions = ['No Action Necessary', 'Action Completed Onsite',
+               'Further Action Necessary', 'Stop the Job']
+    color_map = {
+                'Stop the Job': 'red',
+                'Further Action Necessary': 'green',
+                'Action Completed Onsite': 'orange',
+                'No Action Necessary': 'blue'
+                }
+    plt.figure(figsize=(10, 10))
+    for action in actions:
+        plt.scatter(x[reports.immediateActionsTaken == action],
+                    y[reports.immediateActionsTaken == action],
+                    s=point_size,
+                    c=color_map[action],
+                    label=action)
+    plt.axis('equal')
+    plt.axis('off')
+    plt.legend(loc=(.6, .25), markerscale=10)
 
+def words_around_edges():
+    '''
+    Put words from the svd components around the edges to get a sense of (if not
+    an actual interpretation of) how descriptions are clustered.
+    '''
+    pipe_SVD = get_pipeline()
+    x = pipe_SVD.named_steps['decomp'].components_[3,:]
+    y = pipe_SVD.named_steps['decomp'].components_[1,:]
+    vocab = pipe_SVD.named_steps['tfidf'].vocabulary_
+    inverse_vocab = {vocab[key]:key for key in vocab}
+    x_positive = [inverse_vocab[index] for index in x.argsort()[::-1][:30]]
+    x_negative = [inverse_vocab[index] for index in x.argsort()[:30]]
+    y_positive = [inverse_vocab[index] for index in y.argsort()[::-1][:30]]
+    y_negative = [inverse_vocab[index] for index in y.argsort()[:30]]
+    stop_words = set(stopwords.words('english'))
+    x_positive = [word for word in x_positive if word not in stop_words]
+    x_negative = [word for word in x_negative if word not in stop_words]
+    y_positive = [word for word in y_positive if word not in stop_words]
+    y_negative = [word for word in y_negative if word not in stop_words]
+    for i, word in enumerate(x_positive):
+        plt.text(.55, .2-i/40.0, word)
+    for i, word in enumerate(x_negative):
+        plt.text(-.32, .25 - i/40.0, word)
+    for i, word in enumerate(y_positive):
+        plt.text(-.25+i/30.0, .39 - (i%3)*.02, word)
+    for i, word in enumerate(y_negative):
+        plt.text(-.25+i/25.0, -.37 - (i%3)*.02, word)
+
+def words_in_corners():
+    '''
+    Near the three main clusters/streamers, put a short interpretation
+    of what sort of descriptions can be found there.
+    '''
+    plt.text(-.32, .4, 'The Wells Themselves', size='large')
+    plt.text(.5, .1, 'Landscaping \n and Roads', size='large')
+    plt.text(-.1, -.37, 'Conversations and Forms', size='large')
+
+def plot_test_data():
+    pass
 
 if __name__ == '__main__':
     print('I am a plot-making machine.')
