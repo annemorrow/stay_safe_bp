@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import pickle
 from datetime import datetime, timedelta
-from scorer import get_pipeline
+from scorer import get_pipeline, get_coefficients_of_line, closest_point_on_line
 from nltk.corpus import stopwords
 
 def reports_by_type():
@@ -115,8 +115,8 @@ def scatter_and_legend(point_size=1, x=3, y=1):
         plt.scatter(x_coords[reports.immediateActionsTaken == action],
                     y_coords[reports.immediateActionsTaken == action],
                     s=point_size,
-                    c=color_map[action],
-                    label=action)
+                    c=color_map[action])#,
+                    #label=action)
     plt.axis('equal')
     plt.axis('off')
     #plt.legend(loc=(.6, .25), markerscale=10)
@@ -174,7 +174,7 @@ def plot_test_data(tag, x=3, y=1):
     plt.scatter(x[graded.grade == 1], y[graded.grade == 1],
                 s=30, edgecolor='red', linewidth=3, c=tag_colors[tag],
                 label='Important--{}'.format(tag))
-    l = plt.legend(loc=(.6, .5), markerscale=1.5)
+    l = plt.legend(loc=(.5, .7), markerscale=1.5)
 
 def plot_data_and_test(tag, x=3, y=1):
     scatter_and_legend(.1, x, y)
@@ -207,4 +207,10 @@ def plot_3d():
 
 if __name__ == '__main__':
     print('I am a plot-making machine.')
-    plot_data_and_test('Action Completed Onsite', 2, 3)
+    plot_data_and_test('Action Completed Onsite', x=2, y=3)
+    b, m = get_coefficients_of_line()
+    x_lim = np.array(plt.xlim())
+    y_lim = m * x_lim + b
+    plt.plot(x_lim, y_lim, c='gray', linestyle='dashed')
+    plt.savefig('plots/action_completed_onsite_with_line.png')
+    plt.show()
