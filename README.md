@@ -1,96 +1,75 @@
-# README #
+# Stay Safe, BP
+## Prioritize Safety Reports for Review
 
-## Stay Safe, BP ##
-* Workers at BP can submit a form from an app on their phone whenever they observe a safety concern.
-* More reports come in than can be easily reviewed.
-* Some are flagged as important, many more are not.
-* I want to prioritize reports for review based on the incident descriptions in the reports.
+In this project, I examine safety reports submitted by BP workers from sites across the continental United States.  Hundreds of reports come in each day, which is more than can be easily reviewed.  Each of them is flagged as one of the following:
+* Stop the Job
+* Further Action Necessary
+* Action Completed Onsite
+* No Action Necessary
 
-## For example... ##
-Here are two incident descriptions, both taken from reports that were flagged as 'action completed onsite'.
-* When opening a gate noticed a large bee on the gate where I was fixing to lay my hand.  Stepped back and waited until bee took off .  Then opened gate.
-* Pad went down on low unit pressure when all of the wells were in off cycle.  Re-pressured up equipment and returned pad to service. Cycles need to be reviewed.
+This is a great indication of which reports to review first, but most of the reports are flagged as 'No Action Necessary' or 'Action Completed Onsite', and my goal is to prioritize reports within these categories.
 
-No one needs to follow up with the first report, but the second report describes a change in the state of the equipment and recommends an essential action.  Because they are flagged the same way, no one reviewing them would know to look at the second report first.
+## What's included in this repository
 
-## The Data  -- Exploratory Data Analysis and Summary Plots ##
-### The Dimensions ###
-A couple months before I started looking at the safety data, BP started to transition from their old reporting app to a new reporting app, so my first task was to find a way to combine the data received from both apps.  In particular, I wanted to match the form of the new app as much as possible so that the model I created would be most useful in the future.  The data from the old app was arranged into 485 columns while the data from the new app was streamlined into a trim 57 columns.  Of these, 36 columns were carried over from the old app, and my first step was confirming that the content type as well as the column name was the same.  That left 21 columns from the new app that had to be recreated from data in the old app.  Once I successfully combined the data into one table that closely resembled what was received from the new app (I had to drop some columns), I began to look for data that was indicative of importance.
+The data itself is proprietary so is not included, but I have included multiple python files for cleaning, exploring, and ranking safety reports.
 
-### The Unreliability of Dates ###
-There were 16 different date columns in the data.  However, most of these were different parts of the timestamps found in the following six columns:  ['createdDate',
-'modifiedDate',
-'serverCreatedDate',
-'serverModifiedDate',
-'eventOccurredDate',
-'adapterProcessedDate'].
-I thought that perhaps if modifiedDate date was later than createdDate, that would indicate that someone had considered it an important report and followed up with it.  However, the dates in createdDate were completely unreliable, ranging from 1917 to 2018, and often modifiedDate came before createdDate.
-I then turned my focus to serverCreatedDate and serverModifiedDate, hoping to remove the error-prone human element.
+* load_original_data.py
+    * I received the safety data in two .csv files with the column names in a third file.  This code reads these files into pandas dataframes and adds the column names.
+* combine_data.py
+    * The safety reports I received were collected via two systems.  The data collected by the old system arrived in 485 sparse columns, while the data collected by the new system was confined to a mere 57, 36 of which were in common with the old system.  This code transforms data from the old system to match the format from the new system, either by carrying over matching columns or identifying data from the old reports that can be used to fill in the newly introduced columns.
+* make_data_numerical.py
+    * Most of the columns contained categorical data.  If a column looked like it contained promising data for analysis, I created dummy variables or similar in order to prepare the data for machine learning.
+* scorer.py
+    * Based on my discoveries, I created a python object that would rank reports from most important to least important.  The next section covers details and limitations of this ranking.
+* plots.py
+    * All plots in this report were created using matplotlib.
 
-![](plots/created_to_modified_hist.png)
+## Incident Descriptions and Natural Language Processing
 
-![](plots/created_to_modified_hist_first_two_weeks.png)
+Out of the hundreds of columns from the original dataset, two became the focus of my investigation:
+* immediateActionsTaken:  this was a categorical column that contained one of the four values
+    * Stop the Job
+    * Further Action Necessary
+    * Action Completed Onsite
+    * No Action Necessary
+* incidentDescription:  this was a free-text field which I used natural language processing tools to explore
 
-I could see from these two plots that there weren't going to be enough reports with a delay to train a model, and the bump at 150 days made me wonder about the reliability of even the server times.
+Two tools in particular from sklearn were esstential to the success of this endeavor.
+* TfidfVectorizer transformed the incident descriptions to normalized vectors based on the words used.
+* TruncatedSVD identified dimensions in this vector space that were likely to be illuminating.  The descriptions themselves were too short to use PCA, and trying to do so lead to an error.
 
-The adapterProcessedDate was interesting for its own reasons, as it measured when the report made it to the database.
+Image 1:
+![scatter with words](plots/svd.png)
 
-![](plots/days_until_database.png)
+I used the TruncatedSVD to look at the incident descriptions in four dimensional space, and the plot above is from two of those dimensions.  The SVD identified these dimensions without reference to the label ('no action necessary', etc.), but when I color coded the points based on label, it was apparent that these labels were separable in this plane.  The words around the edges are those that were most negative or most positive for that component of the SVD, and while they are not immediately interpretable, they did help me to summarize what I was seeing, which I verified by sampling and reading incident descriptions from different locations on the plot.  
 
-This was alarming until a conversation with Evan from BP revealed that all the data had been moved to a different database, reseting the adapterProcessedDate for everything that came before.
+Image 2 (a summary of Image 1):
+![summary scatter](plots/summary_scatter.png)
 
-![](plots/adapter_processed.png)
+Through sampling and reading descriptions from various segments of this plot, I made the following intuitive determinations:
+* The descriptions labeled 'No Action Necessary' get increasingly important the closer they are plotted to the Stop the Job cluster in the center.
+* The descriptions labeled 'Further Action Necessary' were also more important the closer they fell to the Stop the Job cluster.  Intuitively this makes sense:  They are not landscapers nor do they repair roads, so if those things need to happen they need to be done by someone else, hence 'Further Action Necessary'.  If they can't complete something related to the wells themselves, which is their job, then it must be pretty bad.
+* The descriptions labeled 'Action Completed Onsite' were the most difficult to sort.  On the one hand, it seemed like they would be more important as they got nearer to 'Stop the Job'.  On the other hand, it seemed like they would be more important as they got nearer to the wells themselves.  Since they were primarily located on a vector between the two, this particular perspective was not helpful in ranking them.
 
-### The Sparsity of Real Event Types ###
-There was a column in both the old safety app format and the new safety app format that listed categories for the events.  As part of my initial investigation, I looked at how many reports of each type were generated at each location over time.
+## A Small Amount of Test Data
+I was fortunate enough to receive some actual test data from BP.  These were randomly selected incident descriptions from reports that had been labeled either 'No Action Necessary' or 'Action Completed Onsite'.  Based on only the description, safety report reviewers from BP marked them as either important or unimportant.
 
-![](plots/types_over_time.png)
+### No Action Necessary
 
-I immediately wondered about the spike at Wamsutter around March, but a conversation with Matt from BP revealed that they had tried a quota system around that time which they discontinued after seeing the quality of the reports this produced.  I also saw that there had been a company-wide shift from identifying reports as 'Hazard Identification' to 'Verification', indicating that neither of these categories was very well defined and that they each served as a default category when none of the well-defined categories seemed appropriate.  Also, reports that listed a type other than these two were exceedingly rare.
+Image 3:
+![no action necessary test](plots/no_action_necessary_test.png)
+By plotting the test points on the original scatter plot, I confirmed my observations that the important incident descriptions that had been labeled 'No Action Necessary' were those that were close to 'Stop the Job'.  For my ranking system, reports labled 'No Action Necessary' are ranked based on their euclidean distance in these two dimensions from the center (mean) of the stop the job descriptions.
 
-While I was initially hopeful that event types would be an essential part of my model, I ended up mostly abandoning it.  If a report lists a meaningful event type, then I will push it to the top of the queue, but these reports are too rare to use for any machine learning model.
+### Action Completed Onsite
+As mentioned above, there was no obvious way of interpreting this plot for reports marked 'Action Completed Onsite', and plotting the test points bore this out.
 
-### From 485 Columns to 2 ###
+Image 4:
+![action complted onsite test original perspective](plots/action_completed_onsite_original_plane.png)
+The important and unimportant points have essentially the same distribution.  However, the SVD I'd been using was fitted in four dimensions, and looking at the data from a different perspective was a bit more fruitful for the 'Action Completed Onsite' reports.
 
-The dates weren't the only redundant columns.  There were multiple columns referring to the same location (one would say BPWamsutter while the other would say Wamsutter), and many columns were more granular versions of other columns (Wamsutter is part of Business Unit 'North').  Ultimately only about six columns were were reasonably uncorrelated, and of those six, only two were useful for predictions.
+Image 5:
+![action completed onsite from another perspective](plots/action_completed_onsite_with_line.png)
+From this perspective, 'Action Completed Onsite' descriptions separate into two strands, and the important reports only fall into one of these strands.  The line in the picture is the least squares regression line through 'Stop the Job' reports.  In my report sorter, I rank 'Action Completed Onsite' reports by their orthogonal distance to this line in this plane.
 
-* 'immediateActionsTaken'
-
-Although I did more unsupervised learning than supervised, I would consider this the closest thing I had to a target variable.  The possible values in this column were 'No Action Necessary', 'Action Completed Onsite', 'Further Action Necessary', and 'Stop the Job'.  Reports labeled 'Stop the Job' are considered the most important and reviewed first, followed by 'Further Action Necessary'.  The other two labels, which comprise the vast majority of the reports, are looked at last.
-
-
-* 'incidentDescription'
-
-This is the free-text field that I focused on for natural language processing.
-
-## Natural Language Processing and Unsupervised Machine Learning ##
-
-I used two techniques to gain insight into the incident descriptions.  The first was term frequency–inverse document frequency (tf-idf) which converts documents to vectors based on what words are used.  The second was singular value decomposition (svd), which identifies dimensions in the word-vector-space where we can see clusters in our comments.
-
-![](plots/svd.png)
-
-Each point represents an incident description.  The two dimensions shown were identified by the singular value decomposition as principal components of the word-vector-space.  The labels identified in the key were not used to make the decomposition, but it's clear that in these two dimensions, the labels match up with clusters in the incident descriptions.  Reports labeled 'Stop the Job' are at the center, and reports from the other three categories fall near a vector away from the center.  The words around the border are words that are highly positive or highly negative along that dimension.  For example, a description that includes the words 'mowed', 'sprayed', and 'weeds' but not the words 'ball', 'pressure', or 'needle' will fall towards the right of the graph.
-
-Both the top and left have similar words such as 'valve' and 'plug' and 'missing' (there are many reports about missing plugs), so I made a heavily summarized version with only three labels.
-
-![](plots/summary_scatter.png)
-
-In order to check this plot against my intuition, I looked at sample comments from different parts of the plot.
-
-### No Action Necessary ###
-When the y value was low (far from the stop-the-job cluster), the comments tend to be accounts of friendly conversations about safety protocol confirming that everyone was doing exactly what they should be doing.  As y increases, the conversations are not quite as friendly, and as points reach the stop-the-job cluster, they are in reaction to people not doing what they should.
-### Further Action Necessary ###
-When the x value is high (far from the stop-the-job cluster), there are many comments about the roads being washed out or the grass needing to be trimmed so people can avoid snakes.  While any report marked further action necessary should be reviewed, these reports get more important as x gets smaller.  This is because these reports have more to do with the wells.  If they can't complete an action that is within their job description, then it's probably pretty bad.
-### Action Completed Onsite ###
-There are two opposing thoughts on this.  In one direction, it approaches 'Stop the Job', and in the other direction, it is more likely to be about the wells.  From looking at the comments, comments seem more important nearer the upper left corner.  However, reports labeled Action Completed Onsite need more investigation.
-
-## Another Tactic ##
-If a word suddenly starts showing up in reports more frequently than usual, it might indicate a project or problem that has arisen.  I'm considering the z-score of the number of occurrences of each word on a given day relative to the average number of occurrences of that word on the preceding 30 days.  I'm also setting a use threshold of at least 5 to avoid unique or uniquely spelled words, and I'm setting the z-score threshold to 2.5.
-
-For each site, here are the number of abruptly frequent words for each day:
-
-![](plots/new_words_over_time.png)
-
-My thinking is that I can prioritize reports if they're representative of the new trend.
-
-I've created a second unrelated score that is a comment's cosine similarity to the mean tfidf vector for that day's comments vs the comment's cosine similarity to the mean tfidf vector for the previous month's comments.  Now I'm exploring how to combine the score generated from the comment's position on the preceding scatter plot and this score.
+## Conclusion and Utility
+I don't advocate using natural language processing as a first resort for sorting reports for review.  Initial sorting should still be based on whether a report is labeled 'Stop the Job', 'Further Action Necessary', 'Action Completed Onsite', or 'No Action Necessary'.  Furthermore, the type of event provides another intuitive way to order reports.  The vast majority of reports have an event type of 'Verification' or 'Hazard Identification', but if they have a type of 'Fire' or 'Injury', they should be at the top of the queue for review.  However, all other things being equal, natural language processing can filter out most of the unimportant 'No Action Necessary' reports and some of the unimportant 'Action Completed Onsite' reports.
