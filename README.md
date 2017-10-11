@@ -62,11 +62,10 @@ Plotting this test data confirmed observations that the important incident descr
 ### Action Completed Onsite
 Plotting test data that has been originally marked as 'Action Completed Onsite' bore out the earlier observation that ranking data from this category based on this plot--at least from this perspective--was impossible.
 
-Image 4:
+
 ![action complted onsite test original perspective](plots/action_completed_onsite_original_plane.png)
 The important and unimportant points have essentially the same distribution.  However, the SVD I'd been using was fitted in four dimensions, and looking at the data from a different perspective was a bit more fruitful for the 'Action Completed Onsite' reports.
 
-Image 5:
 ![action completed onsite from another perspective](plots/action_completed_onsite_with_line.png)
 From this perspective, 'Action Completed Onsite' descriptions separate into two strands, and the important reports only fall into one of these strands.  The line in the picture is the least squares regression line through 'Stop the Job' reports.  Reports in this category can be ranked by their orthogonal distance to this line in this plane.
 
