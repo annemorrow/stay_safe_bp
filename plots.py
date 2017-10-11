@@ -105,7 +105,7 @@ def scatter_and_legend(point_size=1, x=3, y=1):
     actions = ['No Action Necessary', 'Action Completed Onsite',
                'Further Action Necessary', 'Stop the Job']
     color_map = {
-                'Stop the Job': 'red',
+                'Stop the Job': 'black',
                 'Further Action Necessary': 'green',
                 'Action Completed Onsite': 'orange',
                 'No Action Necessary': 'blue'
@@ -119,7 +119,7 @@ def scatter_and_legend(point_size=1, x=3, y=1):
                     #label=action)
     plt.axis('equal')
     plt.axis('off')
-    #plt.legend(loc=(.6, .25), markerscale=10)
+    plt.legend(loc=(.6, .25), markerscale=10)
 
 def words_around_edges():
     '''
@@ -174,7 +174,9 @@ def plot_test_data(tag, x=3, y=1):
     plt.scatter(x[graded.grade == 1], y[graded.grade == 1],
                 s=30, edgecolor='red', linewidth=3, c=tag_colors[tag],
                 label='Important--{}'.format(tag))
-    l = plt.legend(loc=(.5, .7), markerscale=1.5)
+    plt.legend(loc=(.5, .7), markerscale=1.5)
+    #plt.legend(loc=(.6, .25), markerscale=1.5)
+    print(graded[(x >.2)].incidentDescription)
 
 def plot_data_and_test(tag, x=3, y=1):
     scatter_and_legend(.1, x, y)
@@ -187,7 +189,7 @@ def plot_3d():
     reports.dropna(subset=['immediateActionsTaken', 'incidentDescription'], inplace=True)
     coordinates = pipe_SVD.transform(reports.incidentDescription)[:, [1, 2, 3]]
     colors = list(reports.immediateActionsTaken.map({
-                'Stop the Job': 'red',
+                'Stop the Job': 'black',
                 'Further Action Necessary': 'green',
                 'Action Completed Onsite': 'orange',
                 'No Action Necessary': 'blue'
@@ -204,13 +206,50 @@ def plot_3d():
     ax.scatter(x, y, z, c=grade_colors, s=3)
     plt.show()
 
+def show_comment(seq=None, x_dim=3, y_dim=1):
+    reports = pd.read_csv('my_data/combined_reports.csv').set_index('seq')
+    if seq == None:
+        seq = reports.sample(1).index[0]
+    pipe = get_pipeline()
+    description = reports.loc[seq].incidentDescription
+    coordinates = pipe.transform([description])
+    x, y = coordinates[:, x_dim], coordinates[:, y_dim]
+    plt.scatter(x, y, s=50, color='black')
+    comment = description.replace('[', '').replace(']', '').strip()
+    plt.text(.3, -.1, comment, wrap=True, bbox=dict(facecolor='none',
+                                                     edgecolor='white',
+                                                     boxstyle='round',
+                                                     pad=1))
+    print(seq)
+    print(comment)
+
+def save_comment_pic(seq, strand):
+    scatter_and_legend()
+    show_comment(seq)
+    plt.savefig('plots/{}_{}.png'.format(strand, seq), bbox_inches='tight')
+    plt.show()
+
 
 if __name__ == '__main__':
     print('I am a plot-making machine.')
-    plot_data_and_test('Action Completed Onsite', x=2, y=3)
-    b, m = get_coefficients_of_line()
-    x_lim = np.array(plt.xlim())
-    y_lim = m * x_lim + b
-    plt.plot(x_lim, y_lim, c='gray', linestyle='dashed')
+    scatter_and_legend(point_size=.1, x=2, y=3)
+    plot_test_data('Action Completed Onsite', x=2, y=3)
+    #show_comment()
+    # plt.xlim(-.27, .5)
+    # plt.ylim(-.35, .27)
+    x_ = np.array(plt.xlim())
+    intercept, slope = get_coefficients_of_line()
+    y_ = slope * x_ + intercept
+    plt.plot(x_, y_, c='gray', linestyle='dashed')
     plt.savefig('plots/action_completed_onsite_with_line.png')
     plt.show()
+
+    #scatter_and_legend()
+    #show_comment(20469574)
+    #plt.savefig('plots/grayscale.png', bbox_inches='tight')
+    #plt.show()
+
+    # scatter_and_legend(point_size=.1)
+    # plot_test_data('Action Completed Onsite')
+    # plt.savefig('plots/action_completed_onsite_test.png')
+    # plt.show()
