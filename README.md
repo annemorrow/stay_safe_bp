@@ -36,7 +36,7 @@ Out of the hundreds of columns from the original dataset, two became the focus o
 
 Two tools in particular from sklearn were esstential to the success of this endeavor.
 * TfidfVectorizer transformed the incident descriptions to normalized vectors based on the words used.
-* TruncatedSVD identified dimensions in this vector space that were likely to be illuminating.  The descriptions themselves were too short to use PCA, and trying to do so lead to an error.
+* TruncatedSVD identified dimensions in this vector space that were likely to be illuminating.  The descriptions themselves were too short to use PCA.
 
 
 ![scatter with words](plots/svd.png)
